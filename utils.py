@@ -1,0 +1,50 @@
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+
+def plot_nh4_predictions(model, val_loader, device="cuda", save_path="nh4_prediction.png"):
+    """
+    Plot NH4 predicted vs measured from a validation DataLoader, with residuals (matplotlib version).
+    """
+    model.eval()
+    model.to(device)
+
+    y_meas_all = []
+    y_pred_all = []
+
+    with torch.no_grad():
+        for idx, (x_batch, y_batch) in enumerate(val_loader):
+            x_batch = x_batch.to(device)
+            y_batch = y_batch.to(device)
+            if idx>1:
+                break
+
+            y_pred = model(x_batch)
+
+            y_meas_all.append(y_batch.cpu().numpy())
+            y_pred_all.append(y_pred.cpu().numpy())
+
+    y_meas_all = np.concatenate(y_meas_all)
+    y_pred_all = np.concatenate(y_pred_all)
+    residuals = y_pred_all - y_meas_all
+    t = np.arange(len(y_meas_all))  # simple time index
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6), gridspec_kw={"height_ratios": [0.7, 0.3]}, sharex=True)
+
+    # Top: measured vs predicted
+    ax1.plot(t, y_meas_all, label="NH4 measured", color="limegreen")
+    ax1.plot(t, y_pred_all, label="NH4 predicted", color="royalblue")
+    ax1.set_ylabel("NH4 [mgN/L]")
+    ax1.legend()
+    ax1.set_title("NH4 Measured vs Predicted with Residuals")
+
+    # Bottom: residuals
+    ax2.plot(t, residuals, label="Residual (pred - meas)", color="black")
+    ax2.set_xlabel("Time (index)")
+    ax2.set_ylabel("Residual NH4 [mgN/L]")
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.close(fig)
+    print(f"Figure saved to {save_path}")
