@@ -23,7 +23,7 @@ class TimeSeriesNH4Dataset(Dataset):
 
         # Extract features and target
         self.features = df.drop(columns=['.SBR_1.NH4']).values.astype(np.float32)
-        self.target = df['.SBR_1.NH4'].values.astype(np.float32)
+        self.targets = df['.SBR_1.NH4'].values.astype(np.float32)
 
         # Compute number of sequences
         self.n_samples = len(df) - seq_len
@@ -33,7 +33,7 @@ class TimeSeriesNH4Dataset(Dataset):
 
     def __getitem__(self, idx):
         x = self.features[idx:idx+self.seq_len]
-        y = self.target[(idx+self.seq_len)-1]  # predict next step
+        y = self.targets[(idx+self.seq_len)-1]  # predict next step
         return torch.from_numpy(x), torch.tensor(y)
 
 # Example usage:
