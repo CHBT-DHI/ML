@@ -32,9 +32,6 @@ def plot_nh4_predictions_xgboost(model, val_loader, save_path="nh4_prediction.pn
         y_meas_all.append(y_np)
         y_pred_all.append(y_pred)
 
-        if idx > 1:  # only plot first few samples
-            break
-
     # Convert lists to flat arrays safely
     y_meas_all = np.concatenate([y.reshape(-1) for y in y_meas_all])
     y_pred_all = np.concatenate([p.reshape(-1) for p in y_pred_all])
@@ -83,8 +80,6 @@ def plot_nh4_predictions(model, val_loader, device="cuda", save_path="nh4_predic
         for idx, (x_batch, y_batch) in enumerate(val_loader):
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
-            if idx>1:
-                break
 
             y_pred = model(x_batch)
 

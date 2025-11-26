@@ -6,27 +6,42 @@ from dataset import TimeSeriesNH4Dataset
 from utils import plot_nh4_predictions_xgboost
 
 # --- Hyperparameters ---
-csv_path = "data/raw_normalized/normalized.csv"
+train_csv_path = "data/raw_normalized/train.csv"
+test_csv_path  = "data/raw_normalized/test.csv"
+
 seq_len = 1
-num_epochs = 50  # XGBoost can use `num_boost_round`
-test_size = 0.2
+test_size = 0.1       # for val split inside the training portion
 learning_rate = 0.05
 max_depth = 6
 n_estimators = 100
 
-# --- Load dataset ---
-dataset = TimeSeriesNH4Dataset(csv_path, seq_len=seq_len)
-X = dataset.features  # shape: (num_samples, num_features)
-y = dataset.targets   # shape: (num_samples, 1) or (num_samples,)
+# ---------------------------------------------------------
+# Load datasets
+# ---------------------------------------------------------
+train_dataset = TimeSeriesNH4Dataset(train_csv_path, seq_len=seq_len)
+test_dataset  = TimeSeriesNH4Dataset(test_csv_path,  seq_len=seq_len)
+
+X_train_full = train_dataset.features
+y_train_full = train_dataset.targets
+
+X_test = test_dataset.features
+y_test = test_dataset.targets
 
 # Flatten sequences if seq_len > 1
 if seq_len > 1:
-    X = X.reshape(X.shape[0], -1)
+    X_train_full = X_train_full.reshape(X_train_full.shape[0], -1)
+    X_test = X_test.reshape(X_test.shape[0], -1)
 
-# --- Train/validation split ---
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=test_size, shuffle=True, random_state=42)
+# ---------------------------------------------------------
+# Train/validation split (inside the training set)
+# ---------------------------------------------------------
+X_train, X_val, y_train, y_val = train_test_split(
+    X_train_full, y_train_full, test_size=test_size, shuffle=True, random_state=42
+)
 
-# --- Initialize XGBoost regressor ---
+# ---------------------------------------------------------
+# Initialize model
+# ---------------------------------------------------------
 xgb_params = dict(
     n_estimators=500,
     max_depth=5,
@@ -39,24 +54,37 @@ xgb_params = dict(
 )
 model = xgb.XGBRegressor(**xgb_params)
 
-# --- Train model ---
+# ---------------------------------------------------------
+# Train
+# ---------------------------------------------------------
 model.fit(
     X_train, y_train,
     eval_set=[(X_val, y_val)],
     verbose=True,
 )
 
-# --- Evaluation ---
+# ---------------------------------------------------------
+# Evaluation on train + val
+# ---------------------------------------------------------
 y_train_pred = model.predict(X_train)
-y_val_pred = model.predict(X_val)
+y_val_pred   = model.predict(X_val)
 
 train_loss = mean_squared_error(y_train, y_train_pred)
-val_loss = mean_squared_error(y_val, y_val_pred)
+val_loss   = mean_squared_error(y_val,   y_val_pred)
 
 print(f"Train MSE: {train_loss:.6f} | Val MSE: {val_loss:.6f}")
 
-# --- Plot predictions ---
-# For plotting, we need a DataLoader-like interface for the XGBoost predictions
+# ---------------------------------------------------------
+# Test evaluation
+# ---------------------------------------------------------
+y_test_pred = model.predict(X_test)
+test_loss = mean_squared_error(y_test, y_test_pred)
+
+print(f"TEST MSE: {test_loss:.6f}")
+
+# ---------------------------------------------------------
+# Plot predictions on test set
+# ---------------------------------------------------------
 class DummyLoader:
     def __init__(self, X, y):
         self.X = X
@@ -65,5 +93,5 @@ class DummyLoader:
         for xi, yi in zip(self.X, self.y):
             yield xi, yi
 
-val_loader_dummy = DummyLoader(X_val, y_val)
-plot_nh4_predictions_xgboost(model, val_loader_dummy)
+test_loader_dummy = DummyLoader(X_test, y_test)
+plot_nh4_predictions_xgboost(model, test_loader_dummy)
